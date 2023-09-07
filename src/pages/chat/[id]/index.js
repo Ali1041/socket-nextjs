@@ -2,47 +2,51 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import io from 'socket.io-client';
-let socketc
+import { stringify } from 'postcss';
 
 const ChatRoom = () => {
   const router = useRouter();
-  const roomId = router.query.id
+  const roomId = router.query.id;
   const [socket, setSocket] = useState(null);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState([]);
   const [userList, setUserList] = useState([]);
-  const [roomIdState, setRoomId] = useState()
+
+  // class GroupMessaging:
+  // socket_id: string
+  // roomId: number
+  // user: Foerign key to User
+
+  // class SokcetId:
+  // socket_id: string
 
   useEffect(() => {
     if (!router.isReady) return
-    const id = router.query
-    socketInitializer(id)
-    setRoomId(id)
-    return () => {
-      socketio.disconnect()
+    console.log(roomId)
+    if (roomId) {
+      const newSocket = io({ path: "/api/socketio" });
+      setSocket(newSocket);
+
+      newSocket.on('connect', () => {
+        console.log("f*** you farhan")
+      })
+
+      newSocket.emit('join', { roomId, username: 'User' + Math.floor(Math.random() * 100) });
+
+      newSocket.on('receiveMessage', (data) => {
+        setMessages((prevMessages) => [...prevMessages, data]);
+      });
+
+      newSocket.on('userList', (users) => {
+        setUserList(users);
+      });
+
+      return () => {
+        newSocket.disconnect();
+      };
     }
-  }, [router.isReady])
+  }, [roomId, router.isReady]);
 
-  const socketInitializer = async () => {
-    await fetch('/api/chat/' + roomId)
-    // inside io the connection should be on different route
-    socketio = io()
-    console.log(socketio)
-
-    socketio.on("connect", () => {
-      console.log("connected")
-    })
-
-    socketio.emit('join', { roomId, username: 'User' + Math.floor(Math.random() * 100) });
-
-    socketio.on('receiveMessage', (data) => {
-      setMessages((prevMessages) => [...prevMessages, data]);
-    });
-
-    socketio.on('userList', (users) => {
-      setUserList(users);
-    });
-  }
   const sendMessage = () => {
     if (socket && message.trim() !== '') {
       socket.emit('sendMessage', { roomId, message });
